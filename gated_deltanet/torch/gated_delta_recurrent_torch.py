@@ -106,10 +106,10 @@ def gated_delta_recurrent_torch(
             final_state_seq *= alpha_t
 
             # 2. Delta rule update
-            v_new = beta_t * (v_t - k_t @ final_state)  # shape (D,)
+            v_new = beta_t * (v_t - k_t @ final_state_seq)  # shape (D,)
             final_state_seq += torch.outer(k_t, v_new)  # shape (D, D)
 
             # 3. Output 계산
-            out_seq[t, :] = q_t @ final_state  # shape (D,)
+            out_seq[t, :] = q_t @ final_state_seq  # shape (D,)
 
     return output, final_state
