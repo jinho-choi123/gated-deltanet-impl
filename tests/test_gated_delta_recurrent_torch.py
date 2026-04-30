@@ -36,3 +36,33 @@ def test_matches_fla_multi_sequence_packed(seq_lens):
     )
     torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
     torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+def test_matches_fla_with_random_initial_state():
+    inputs = make_packed_inputs(
+        seq_lens=[6, 9], H=3, D=4, seed=2, use_initial_state=True,
+    )
+    o_ref, s_ref = fla_reference(**inputs)
+    o_user, s_user = gated_delta_recurrent_torch(
+        inputs["q"], inputs["k"], inputs["v"],
+        inputs["g"], inputs["beta"],
+        inputs["cu_seqlens"], inputs["initial_state"],
+    )
+    torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+def test_matches_fla_with_zero_initial_state():
+    inputs = make_packed_inputs(
+        seq_lens=[7], H=2, D=4, seed=3, use_initial_state=False,
+    )
+    o_ref, s_ref = fla_reference(**inputs)
+    o_user, s_user = gated_delta_recurrent_torch(
+        inputs["q"], inputs["k"], inputs["v"],
+        inputs["g"], inputs["beta"],
+        inputs["cu_seqlens"], inputs["initial_state"],
+    )
+    torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
