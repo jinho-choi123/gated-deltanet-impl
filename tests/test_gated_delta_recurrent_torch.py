@@ -122,3 +122,30 @@ def test_matches_fla_realistic_dims():
     )
     torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
     torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+def test_final_state_per_sequence_independent():
+    # Run sequence A alone vs. sequence A packed with sequence B.
+    # final_state[A] must be IDENTICAL in both runs.
+    inputs_pair = make_packed_inputs(seq_lens=[7, 5], H=2, D=4, seed=8)
+    inputs_a_only = {
+        "q": inputs_pair["q"][:, :7],
+        "k": inputs_pair["k"][:, :7],
+        "v": inputs_pair["v"][:, :7],
+        "g": inputs_pair["g"][:, :7],
+        "beta": inputs_pair["beta"][:, :7],
+        "cu_seqlens": torch.tensor([0, 7], dtype=torch.int64, device="cuda"),
+        "initial_state": inputs_pair["initial_state"][:1],
+    }
+    _, s_pair = gated_delta_recurrent_torch(
+        inputs_pair["q"], inputs_pair["k"], inputs_pair["v"],
+        inputs_pair["g"], inputs_pair["beta"],
+        inputs_pair["cu_seqlens"], inputs_pair["initial_state"],
+    )
+    _, s_solo = gated_delta_recurrent_torch(
+        inputs_a_only["q"], inputs_a_only["k"], inputs_a_only["v"],
+        inputs_a_only["g"], inputs_a_only["beta"],
+        inputs_a_only["cu_seqlens"], inputs_a_only["initial_state"],
+    )
+    torch.testing.assert_close(s_pair[0], s_solo[0], atol=1e-4, rtol=1e-4)
