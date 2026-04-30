@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import accumulate
+
 import torch
 
 CUDA = torch.device("cuda")
@@ -17,14 +19,14 @@ def make_packed_inputs(
     seed: int = 0,
     device: torch.device = CUDA,
     dtype: torch.dtype = DTYPE,
-) -> dict:
+) -> dict[str, torch.Tensor]:
     """Build B=1 packed inputs for variable-length sequences.
 
     Returns a dict with keys: q, k, v, g, beta, cu_seqlens, initial_state.
     Tensor shapes:
       q, k, v: (1, L, H, D) where L = sum(seq_lens)
       g, beta: (1, L, H)
-      cu_seqlens: (N+1,) on `device`, dtype=torch.int32
+      cu_seqlens: (N+1,) on `device`, dtype=torch.int64 (fla expects LongTensor)
       initial_state: (N, H, D, D) (zeros if not `use_initial_state`)
     """
     gen = torch.Generator(device="cpu").manual_seed(seed)
@@ -38,7 +40,7 @@ def make_packed_inputs(
     g = -torch.rand(1, L, H, generator=gen, dtype=dtype)
     beta = torch.sigmoid(torch.randn(1, L, H, generator=gen, dtype=dtype))
 
-    offsets = torch.tensor([0, *list(_cumsum(seq_lens))], dtype=torch.int32)
+    offsets = torch.tensor([0, *accumulate(seq_lens)], dtype=torch.int64)
 
     if use_initial_state:
         s0 = torch.randn(N, H, D, D, generator=gen, dtype=dtype) * 0.1
@@ -54,11 +56,3 @@ def make_packed_inputs(
         "cu_seqlens": offsets.to(device),
         "initial_state": s0.to(device),
     }
-
-
-def _cumsum(xs: list[int]) -> list[int]:
-    out, total = [], 0
-    for x in xs:
-        total += x
-        out.append(total)
-    return out
