@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "fla-core>=0.5.0",
     "loguru>=0.7.3",
     "pytest>=9.0.3",
     "pytest-xdist>=3.8.0",
