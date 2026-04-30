@@ -81,3 +81,44 @@ def test_matches_fla_use_qk_l2norm_in_kernel(flag):
     )
     torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
     torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+def test_matches_fla_single_token_per_sequence():
+    # Each sequence is exactly 1 token long.
+    inputs = make_packed_inputs(seq_lens=[1, 1, 1, 1], H=2, D=4, seed=5)
+    o_ref, s_ref = fla_reference(**inputs)
+    o_user, s_user = gated_delta_recurrent_torch(
+        inputs["q"], inputs["k"], inputs["v"],
+        inputs["g"], inputs["beta"],
+        inputs["cu_seqlens"], inputs["initial_state"],
+    )
+    torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+def test_matches_fla_single_head():
+    inputs = make_packed_inputs(seq_lens=[12], H=1, D=4, seed=6)
+    o_ref, s_ref = fla_reference(**inputs)
+    o_user, s_user = gated_delta_recurrent_torch(
+        inputs["q"], inputs["k"], inputs["v"],
+        inputs["g"], inputs["beta"],
+        inputs["cu_seqlens"], inputs["initial_state"],
+    )
+    torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+def test_matches_fla_realistic_dims():
+    # H=4, D=64 — closer to a real layer config.
+    inputs = make_packed_inputs(seq_lens=[64, 64], H=4, D=64, seed=7)
+    o_ref, s_ref = fla_reference(**inputs)
+    o_user, s_user = gated_delta_recurrent_torch(
+        inputs["q"], inputs["k"], inputs["v"],
+        inputs["g"], inputs["beta"],
+        inputs["cu_seqlens"], inputs["initial_state"],
+    )
+    torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
