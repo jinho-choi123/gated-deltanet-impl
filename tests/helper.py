@@ -1,10 +1,8 @@
-"""Shared fixtures and input factories for gated-delta-rule tests."""
-
-from __future__ import annotations
+import torch
+from fla.ops.gated_delta_rule import fused_recurrent_gated_delta_rule
 
 from itertools import accumulate
 
-import torch
 
 CUDA = torch.device("cuda")
 DTYPE = torch.float32
