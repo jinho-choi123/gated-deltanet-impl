@@ -1,10 +1,126 @@
 [project]
-name = "gated-deltanet-triton"
+name = "gated_deltanet"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "torch>=2.11.0",
+    "loguru>=0.7.3",
+    "pytest>=9.0.3",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.15.12",
+    "torch==2.11.0+cu126",
+    "transformers>=5.7.0",
     "triton>=3.6.0",
 ]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = ["pre-commit>=4.5.1", "ty>=0.0.30"]
+
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu126" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+
+[tool.setuptools.packages.find]
+include = ["gated_deltanet*"]
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+line-length = 150
+indent-width = 4
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+
+[tool.ruff.lint]
+
+
+extend-select = [
+    "F",   # Pyflakes rules
+    "W",   # PyCodeStyle warnings
+    "E",   # PyCodeStyle errors
+    "I",   # Sort imports properly
+    "UP",  # Warn if certain things can changed due to newer Python versions
+    "C4",  # Catch incorrect use of comprehensions, dict, list, etc
+    "FA",  # Enforce from __future__ import annotations
+    "ISC", # Good use of string concatenation
+    "ICN", # Use common import conventions
+    "RET", # Good return practices
+    "SIM", # Common simplification rules
+    "TID", # Some good import practices
+    "TC",  # Enforce importing certain types in a TYPE_CHECKING block
+    "PTH", # Use pathlib instead of os.path
+    "TD",  # Be diligent with TODO comments
+    "NPY", # Some numpy-specific things
+]
+
+extend-ignore = [
+    "TD003", # Allowing TODO comments without issue
+]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+ignore = ["E731"]
+
+
+[tool.pytest]
+addopts = ["--verbose", "-s"]
+testpaths = ["tests"]
+python_files = ["test_*"]
+python_functions = ["test_*"]
+markers = ["integration: marks vmmOps integration tests"]
+
+[tool.ty.src]
+include = ["gated_deltanet"]
