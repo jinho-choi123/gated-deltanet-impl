@@ -22,3 +22,17 @@ def test_matches_fla_single_sequence():
     )
     torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
     torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
+
+
+@CUDA_REQUIRED
+@pytest.mark.parametrize("seq_lens", [[1, 1, 1], [3, 5, 7], [13, 4, 8, 11]])
+def test_matches_fla_multi_sequence_packed(seq_lens):
+    inputs = make_packed_inputs(seq_lens=seq_lens, H=2, D=8, seed=1)
+    o_ref, s_ref = fla_reference(**inputs)
+    o_user, s_user = gated_delta_recurrent_torch(
+        inputs["q"], inputs["k"], inputs["v"],
+        inputs["g"], inputs["beta"],
+        inputs["cu_seqlens"], inputs["initial_state"],
+    )
+    torch.testing.assert_close(o_user, o_ref, atol=1e-4, rtol=1e-4)
+    torch.testing.assert_close(s_user, s_ref, atol=1e-4, rtol=1e-4)
