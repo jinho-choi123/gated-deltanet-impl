@@ -1,7 +1,5 @@
 """API for Gated DeltaNet Recurrent implementation."""
 
-from typing import final
-
 import torch
 
 
@@ -62,54 +60,52 @@ def gated_delta_recurrent_torch(
     grid = H * N
 
     # For loop the grids and call the fused_recurrent_gated_delta_rule_fwd_kernel_torch
-    for i in range(grid):
-        pid = i
-        seq_idx = pid // H
-        head_idx = pid % H
-        # iteration loop에서 처리할 시퀀스의 시작과 끝 인덱스를 구함
-        bos_idx = cu_seqlens[seq_idx]
-        eos_idx = cu_seqlens[seq_idx + 1]
+    for seq_idx in range(N):
+        for head_idx in range(H):
+            # iteration loop에서 처리할 시퀀스의 시작과 끝 인덱스를 구함
+            bos_idx = cu_seqlens[seq_idx]
+            eos_idx = cu_seqlens[seq_idx + 1]
 
-        # iteration loop에서 차리할 시퀀스 길이
-        seq_len = eos_idx - bos_idx
+            # iteration loop에서 차리할 시퀀스 길이
+            seq_len = eos_idx - bos_idx
 
-        # iteration loop에서 처리할 q, k, v, g, beta 시퀀스 슬라이스
-        q_seq = q[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len,D)
-        k_seq = k[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len, D)
-        v_seq = v[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len, D)
-        out_seq = output[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len, D)
-        g_seq = g[0, bos_idx:eos_idx, head_idx]  # shape (seq_len,)
-        beta_seq = beta[0, bos_idx:eos_idx, head_idx]  # shape (seq_len,)
-        final_state_seq = final_state[seq_idx, head_idx]  # shape (D, D)
+            # iteration loop에서 처리할 q, k, v, g, beta 시퀀스 슬라이스
+            q_seq = q[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len,D)
+            k_seq = k[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len, D)
+            v_seq = v[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len, D)
+            out_seq = output[0, bos_idx:eos_idx, head_idx, :]  # shape (seq_len, D)
+            g_seq = g[0, bos_idx:eos_idx, head_idx]  # shape (seq_len,)
+            beta_seq = beta[0, bos_idx:eos_idx, head_idx]  # shape (seq_len,)
+            final_state_seq = final_state[seq_idx, head_idx]  # shape (D, D)
 
-        # Recurrent loop
-        # Processing token by token in the sequence, updating the final state.
-        for t in range(seq_len):
-            q_t = torch.clone(q_seq[t, :])  # shape (D,)
-            k_t = torch.clone(k_seq[t, :])  # shape (D,)
-            v_t = torch.clone(v_seq[t, :])  # shape (D,)
-            if use_qk_l2norm_in_kernel:
-                # L2 normalization of q and k
-                q_t = torch.nn.functional.normalize(q_t, p=2, dim=-1)
-                k_t = torch.nn.functional.normalize(k_t, p=2, dim=-1)
+            # Recurrent loop
+            # Processing token by token in the sequence, updating the final state.
+            for t in range(seq_len):
+                q_t = torch.clone(q_seq[t, :])  # shape (D,)
+                k_t = torch.clone(k_seq[t, :])  # shape (D,)
+                v_t = torch.clone(v_seq[t, :])  # shape (D,)
+                if use_qk_l2norm_in_kernel:
+                    # L2 normalization of q and k
+                    q_t = torch.nn.functional.normalize(q_t, p=2, dim=-1)
+                    k_t = torch.nn.functional.normalize(k_t, p=2, dim=-1)
 
-            # q에 scale 곱 (1/√D) — output magnitude 안정화
-            q_t = q_t * (D**-0.5)
+                # q에 scale 곱 (1/√D) — output magnitude 안정화
+                q_t = q_t * (D**-0.5)
 
-            # beta loading
-            beta_t = beta_seq[t]  # shape (1,)
+                # beta loading
+                beta_t = beta_seq[t]  # shape (1,)
 
-            #### Main Recurrent Update ####
+                #### Main Recurrent Update ####
 
-            # 1. State decay (gating) 적용 — Sₜ ← αₜ·Sₜ₋₁
-            alpha_t = torch.exp(g_seq[t])  # shape (1,)
-            final_state_seq *= alpha_t
+                # 1. State decay (gating) 적용 — Sₜ ← αₜ·Sₜ₋₁
+                alpha_t = torch.exp(g_seq[t])  # shape (1,)
+                final_state_seq *= alpha_t
 
-            # 2. Delta rule update
-            v_new = beta_t * (v_t - k_t @ final_state_seq)  # shape (D,)
-            final_state_seq += torch.outer(k_t, v_new)  # shape (D, D)
+                # 2. Delta rule update
+                v_new = beta_t * (v_t - k_t @ final_state_seq)  # shape (D,)
+                final_state_seq += torch.outer(k_t, v_new)  # shape (D, D)
 
-            # 3. Output 계산
-            out_seq[t, :] = q_t @ final_state_seq  # shape (D,)
+                # 3. Output 계산
+                out_seq[t, :] = q_t @ final_state_seq  # shape (D,)
 
     return output, final_state
